@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parkinson's Disease Classifier</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 Parkinson's Disease Drawing Classifier</h1>
+            <p class="subtitle">AI-Powered Detection Using ResNet50 + SVM</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="upload-section">
+                    <h2>Upload Drawing Image</h2>
+                    <p class="info">Upload a drawing image (circle, meander, or spiral) for analysis</p>
+                    
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="fileInput" name="file" accept="image/*" required>
+                            <label for="fileInput" class="file-label">
+                                <span id="fileName">Choose an image file</span>
+                                <span class="browse-btn">Browse</span>
+                            </label>
+                        </div>
+                        
+                        <div id="imagePreview" class="image-preview"></div>
+                        
+                        <button type="submit" class="btn btn-primary" id="predictBtn">
+                            <span id="btnText">Analyze Drawing</span>
+                            <span id="btnLoader" class="loader" style="display: none;"></span>
+                        </button>
+                    </form>
+                </div>
+
+                <div id="resultSection" class="result-section" style="display: none;">
+                    <h2>Analysis Results</h2>
+                    
+                    <div id="resultContent" class="result-content">
+                        <div class="result-image">
+                            <img id="resultImage" src="" alt="Analyzed Image">
+                        </div>
+                        
+                        <div class="result-details">
+                            <div class="diagnosis-box" id="diagnosisBox">
+                                <h3 id="diagnosis"></h3>
+                                <p class="confidence">Confidence: <span id="confidence"></span></p>
+                            </div>
+                            
+                            <div class="probabilities">
+                                <h4>Class Probabilities:</h4>
+                                <div id="probabilitiesList"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="resetForm()" class="btn btn-secondary">Analyze Another Image</button>
+                </div>
+
+                <div id="errorSection" class="error-section" style="display: none;">
+                    <div class="error-box">
+                        <h3>❌ Error</h3>
+                        <p id="errorMessage"></p>
+                    </div>
+                    <button onclick="resetForm()" class="btn btn-secondary">Try Again</button>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>ℹ️ About This System</h3>
+                <ul>
+                    <li><strong>Model:</strong> ResNet50 (Feature Extraction) + SVM (Classification)</li>
+                    <li><strong>Categories:</strong> Healthy Control vs Parkinson's Disease</li>
+                    <li><strong>Drawing Types:</strong> Circle, Meander, Spiral</li>
+                    <li><strong>Accuracy:</strong> High accuracy on test datasets</li>
+                </ul>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Parkinson's Disease Classifier | Research & Educational Purpose</p>
+        </footer>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadForm = document.getElementById('uploadForm');
+        const predictBtn = document.getElementById('predictBtn');
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
+        const resultSection = document.getElementById('resultSection');
+        const errorSection = document.getElementById('errorSection');
+
+        // Handle file selection
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                
+                // Show image preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle form submission
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Hide previous results
+            resultSection.style.display = 'none';
+            errorSection.style.display = 'none';
+            
+            // Show loader
+            predictBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'inline-block';
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                // Send request
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResults(data.result);
+                } else {
+                    displayError(data.error || 'An unknown error occurred');
+                }
+            } catch (error) {
+                displayError('Failed to connect to server: ' + error.message);
+            } finally {
+                // Hide loader
+                predictBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoader.style.display = 'none';
+            }
+        });
+
+        function displayResults(result) {
+            // Show result image
+            document.getElementById('resultImage').src = result.image_path;
+            
+            // Show diagnosis
+            const diagnosisBox = document.getElementById('diagnosisBox');
+            const diagnosis = document.getElementById('diagnosis');
+            diagnosis.textContent = result.diagnosis;
+            
+            // Color code based on diagnosis
+            if (result.diagnosis.includes('Healthy')) {
+                diagnosisBox.className = 'diagnosis-box healthy';
+            } else {
+                diagnosisBox.className = 'diagnosis-box parkinsons';
+            }
+            
+            // Show confidence
+            document.getElementById('confidence').textContent = result.confidence.toFixed(2) + '%';
+            
+            // Show probabilities
+            const probabilitiesList = document.getElementById('probabilitiesList');
+            probabilitiesList.innerHTML = '';
+            
+            for (const [className, probability] of Object.entries(result.probabilities)) {
+                const probDiv = document.createElement('div');
+                probDiv.className = 'probability-item';
+                probDiv.innerHTML = `
+                    <span class="class-name">${className}</span>
+                    <div class="probability-bar">
+                        <div class="probability-fill" style="width: ${probability}%"></div>
+                    </div>
+                    <span class="probability-value">${probability.toFixed(2)}%</span>
+                `;
+                probabilitiesList.appendChild(probDiv);
+            }
+            
+            // Show result section
+            resultSection.style.display = 'block';
+        }
+
+        function displayError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            errorSection.style.display = 'block';
+        }
+
+        function resetForm() {
+            uploadForm.reset();
+            fileName.textContent = 'Choose an image file';
+            imagePreview.innerHTML = '';
+            imagePreview.style.display = 'none';
+            resultSection.style.display = 'none';
+            errorSection.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
