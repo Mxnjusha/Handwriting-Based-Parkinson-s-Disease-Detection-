@@ -1,9 +1,38 @@
-__pycache__/
-.env
+# ===============================
+# DATASETS (DO NOT UPLOAD)
+# ===============================
+dataset/
+augmented_dataset/
+data/
+
+# ===============================
+# TRAINED MODELS & ARTIFACTS
+# ===============================
+models/
+models_improved/
 *.h5
 *.pkl
-*.pt
-dataset/
-data/
-.DS_Store
+*.keras
+
+# ===============================
+# FLASK UPLOADS
+# ===============================
+static/uploads/
+
+# ===============================
+# PYTHON CACHE
+# ===============================
+__pycache__/
+*.pyc
 .ipynb_checkpoints/
+
+# ===============================
+# SYSTEM FILES
+# ===============================
+.DS_Store
+.env
+
+# ===============================
+# LOGS
+# ===============================
+*.log
